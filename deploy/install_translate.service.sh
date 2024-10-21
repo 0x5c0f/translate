@@ -7,6 +7,20 @@
 export propertiesDownUrl=http://down.zvo.cn/properties/properties-1.0.1.jar
 
 
+yum -y install wget
+yum -y install gzip
+yum -y install zip
+yum -y install unzip
+
+
+# 校验down.zvo.cn下载源的通畅
+cd ~
+wget https://gitee.com/HuaweiCloudDeveloper/huaweicloud-solution-build-wangmarketcms/raw/master/shell/hosts.sh -O hosts.sh
+chmod -R 777 hosts.sh
+source ./hosts.sh
+echo "校验down.zvo.cn下载源的通畅 - 校验完毕"
+rm -rf ~/hosts.sh
+
 ##### JDK、Tomcat安装开始####
 wget https://gitee.com/HuaweiCloudDeveloper/huaweicloud-solution-build-wangmarketcms/raw/master/shell/tomcat.sh -O tomcat.sh
 chmod -R 777 tomcat.sh
@@ -49,6 +63,15 @@ yum -y install epel-release
 yum -y install cpulimit
 # 开机启动时清空缓存文件
 echo 'cpulimit -l 10 rm -rf /mnt/tomcat8/fileupload/* &'>>/etc/rc.d/rc.local
+
+# 同步时区，设为 UTC/GMT  格林威治时间
+sudo timedatectl set-timezone UTC
+# 增加时间自动同步  
+sudo yum -y install ntp
+sudo systemctl start ntpd
+sudo systemctl enable ntpd
+sudo systemctl status ntpd
+sudo ntpd -gq
 
 # 输出提示
 echo "自动部署完成，您可以正常使用了！打开浏览器，访问ip即可使用"

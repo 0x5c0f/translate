@@ -9,8 +9,12 @@ var translate = {
 	/*
 	 * 当前的版本
 	 */
-	version:'3.5.0.20240607',
-	useVersion:'v2',	//当前使用的版本，默认使用v2. 可使用 setUseVersion2(); //来设置使用v2 ，已废弃，主要是区分是否是v1版本来着，v2跟v3版本是同样的使用方式
+	version:'3.9.0.20241012',
+	/*
+		当前使用的版本，默认使用v2. 可使用 setUseVersion2(); 
+		来设置使用v2 ，已废弃，主要是区分是否是v1版本来着，v2跟v3版本是同样的使用方式
+	*/
+	useVersion:'v2',	
 	setUseVersion2:function(){
 		translate.useVersion = 'v2';
 		console.log('提示：自 v2.10 之后的版本默认就是使用V2版本（当前版本为:'+translate.version+'）， translate.setUseVersion2() 可以不用再加这一行了。当然加了也无所谓，只是加了跟不加是完全一样的。');
@@ -795,7 +799,7 @@ var translate = {
 	*/
 	nodeQueue:{},
 	//指定要翻译的元素的集合,可传入一个元素或多个元素
-	//如设置一个元素，可传入如： document.getElementsById('test')
+	//如设置一个元素，可传入如： document.getElementById('test')
 	//如设置多个元素，可传入如： document.getElementsByTagName('DIV')
 	setDocuments:function(documents){
 		if (documents == null || typeof(documents) == 'undefined') {
@@ -815,13 +819,18 @@ var translate = {
 	},
 	//获取当前指定翻译的元素（数组形式 [document,document,...]）
 	//如果用户未使用setDocuments 指定的，那么返回整个网页
+	//它返回的永远是个数组形式
 	getDocuments:function(){
 		if(translate.documents != null && typeof(translate.documents) != 'undefined' && translate.documents.length > 0){
 			// setDocuments 指定的
 			return translate.documents;
 		}else{
 			//未使用 setDocuments指定，那就是整个网页了
-			return document.all; //翻译所有的
+			//return document.all; //翻译所有的  这是 v3.5.0之前的
+			//v3.5.0 之后采用 拿 html的最上层的demo，而不是 document.all 拿到可能几千个dom
+			var doms = new Array();
+			doms[0] = document.documentElement;
+			return doms;
 		}
 	},
 	listener:{
@@ -1306,7 +1315,7 @@ var translate = {
 		
 		if(all.length > 500){
 			console.log('------tip------');
-			console.log('translate.execute( docs ) 传入的docs.length 过大，超过500，这很不正常，当前 docs.length : '+docs.length+' ,如果你感觉真的没问题，请联系作者 http://translate.zvo.cn/43006.html 说明情况，根据你的情况进行分析。 当前只取前500个元素进行翻译');
+			console.log('translate.execute( docs ) 传入的docs.length 过大，超过500，这很不正常，当前 docs.length : '+all.length+' ,如果你感觉真的没问题，请联系作者 http://translate.zvo.cn/43006.html 说明情况，根据你的情况进行分析。 当前只取前500个元素进行翻译');
 		}
 
 		//检索目标内的node元素
@@ -1328,9 +1337,13 @@ var translate = {
 		
 		/***** translate.language.translateLanguagesRange 结束 *****/
 		
-
-		//console.log(translate.nodeHistory);
-		//console.log(translate.nodeQueue[uuid])
+		//修复如果translate放在了页面最顶部，此时执行肯定扫描不到任何东西的，避免这种情况出现报错
+		if(typeof(translate.nodeQueue[uuid]) == 'undefined'){
+			translate.nodeQueue[uuid] = new Array();
+			translate.nodeQueue[uuid].list = [];
+			console.log('--- translate.js warn tip 警告！！ ---');
+			console.log('您使用translate.js时可能放的位置不对，不要吧 translate.js 放在网页最顶部，这样当 translate.js 进行执行，也就是 translate.execute() 执行时，因为网页是从上往下加载，它放在网页最顶部，那么它执行时网页后面的内容都还没加载出来，这个是不会获取到网页任何内容的，也就是它是不起任何作用的');
+		}
 		for(var lang in translate.nodeQueue[uuid].list){
 			//console.log('lang:'+lang)
 			for(var hash in translate.nodeQueue[uuid].list[lang]){
@@ -1658,7 +1671,7 @@ var translate = {
 			}
 
 			//如果当前语种就是需要显示的语种（也就是如果要切换的语种），那么也不会进行翻译，直接忽略
-			if(lang == translate.language.getCurrent()){
+			if(lang == translate.to){
 				continue;
 			}
 			fanyiLangs.push(lang);
@@ -1981,7 +1994,12 @@ var translate = {
 					//meta标签，如是关键词、描述等
 					if(typeof(node.name) != 'undefined' && node.name != null){
 						var nodeAttributeName = node.name.toLowerCase();  //取meta 标签的name 属性
-						if(nodeAttributeName == 'keywords' || nodeAttributeName == 'description'){
+						var nodeAttributePropertyOri = node.getAttribute('property'); //取 property的值
+						var nodeAttributeProperty = '';
+						if(typeof(nodeAttributePropertyOri) != 'undefined' && nodeAttributePropertyOri != null && nodeAttributePropertyOri.length > 0){
+							nodeAttributeProperty = nodeAttributePropertyOri.toLowerCase();
+						}
+						if(nodeAttributeName == 'keywords' || nodeAttributeName == 'description' || nodeAttributeName == 'sharetitle' || nodeAttributeProperty == 'og:title' || nodeAttributeProperty == 'og:description' || nodeAttributeProperty == 'og:site_name' || nodeAttributeProperty == 'og:novel:latest_chapter_name'){
 							//替换渲染
 							if(typeof(originalText) != 'undefined' && originalText != null && originalText.length > 0){
 								//this.nodes[hash][task_index].nodeValue = this.nodes[hash][task_index].nodeValue.replace(new RegExp(translate.util.regExp.pattern(task.originalText),'g'), translate.util.regExp.resultText(task.resultText));
@@ -2074,6 +2092,9 @@ var translate = {
 			}
 			
 			var childNodes = node.childNodes;
+			if(childNodes == null || typeof(childNodes) == 'undefined'){
+				return;
+			}
 			if(childNodes.length > 0){
 				for(var i = 0; i<childNodes.length; i++){
 					translate.element.whileNodes(uuid, childNodes[i]);
@@ -3234,7 +3255,7 @@ var translate = {
 		  	return true;
 		},
 		//繁体中文的字典，判断繁体中文就是通过此判断
-		chinese_traditional_dict: '皚藹礙愛翺襖奧壩罷擺敗頒辦絆幫綁鎊謗剝飽寶報鮑輩貝鋇狽備憊繃筆畢斃閉邊編貶變辯辮鼈癟瀕濱賓擯餅撥缽鉑駁蔔補參蠶殘慚慘燦蒼艙倉滄廁側冊測層詫攙摻蟬饞讒纏鏟産闡顫場嘗長償腸廠暢鈔車徹塵陳襯撐稱懲誠騁癡遲馳恥齒熾沖蟲寵疇躊籌綢醜櫥廚鋤雛礎儲觸處傳瘡闖創錘純綽辭詞賜聰蔥囪從叢湊竄錯達帶貸擔單鄲撣膽憚誕彈當擋黨蕩檔搗島禱導盜燈鄧敵滌遞締點墊電澱釣調叠諜疊釘頂錠訂東動棟凍鬥犢獨讀賭鍍鍛斷緞兌隊對噸頓鈍奪鵝額訛惡餓兒爾餌貳發罰閥琺礬釩煩範販飯訪紡飛廢費紛墳奮憤糞豐楓鋒風瘋馮縫諷鳳膚輻撫輔賦複負訃婦縛該鈣蓋幹趕稈贛岡剛鋼綱崗臯鎬擱鴿閣鉻個給龔宮鞏貢鈎溝構購夠蠱顧剮關觀館慣貫廣規矽歸龜閨軌詭櫃貴劊輥滾鍋國過駭韓漢閡鶴賀橫轟鴻紅後壺護滬戶嘩華畫劃話懷壞歡環還緩換喚瘓煥渙黃謊揮輝毀賄穢會燴彙諱誨繪葷渾夥獲貨禍擊機積饑譏雞績緝極輯級擠幾薊劑濟計記際繼紀夾莢頰賈鉀價駕殲監堅箋間艱緘繭檢堿鹼揀撿簡儉減薦檻鑒踐賤見鍵艦劍餞漸濺澗漿蔣槳獎講醬膠澆驕嬌攪鉸矯僥腳餃繳絞轎較稭階節莖驚經頸靜鏡徑痙競淨糾廄舊駒舉據鋸懼劇鵑絹傑潔結誡屆緊錦僅謹進晉燼盡勁荊覺決訣絕鈞軍駿開凱顆殼課墾懇摳庫褲誇塊儈寬礦曠況虧巋窺饋潰擴闊蠟臘萊來賴藍欄攔籃闌蘭瀾讕攬覽懶纜爛濫撈勞澇樂鐳壘類淚籬離裏鯉禮麗厲勵礫曆瀝隸倆聯蓮連鐮憐漣簾斂臉鏈戀煉練糧涼兩輛諒療遼鐐獵臨鄰鱗凜賃齡鈴淩靈嶺領餾劉龍聾嚨籠壟攏隴樓婁摟簍蘆盧顱廬爐擄鹵虜魯賂祿錄陸驢呂鋁侶屢縷慮濾綠巒攣孿灤亂掄輪倫侖淪綸論蘿羅邏鑼籮騾駱絡媽瑪碼螞馬罵嗎買麥賣邁脈瞞饅蠻滿謾貓錨鉚貿麽黴沒鎂門悶們錳夢謎彌覓綿緬廟滅憫閩鳴銘謬謀畝鈉納難撓腦惱鬧餒膩攆撚釀鳥聶齧鑷鎳檸獰甯擰濘鈕紐膿濃農瘧諾歐鷗毆嘔漚盤龐國愛賠噴鵬騙飄頻貧蘋憑評潑頗撲鋪樸譜臍齊騎豈啓氣棄訖牽扡釺鉛遷簽謙錢鉗潛淺譴塹槍嗆牆薔強搶鍬橋喬僑翹竅竊欽親輕氫傾頃請慶瓊窮趨區軀驅齲顴權勸卻鵲讓饒擾繞熱韌認紉榮絨軟銳閏潤灑薩鰓賽傘喪騷掃澀殺紗篩曬閃陝贍繕傷賞燒紹賒攝懾設紳審嬸腎滲聲繩勝聖師獅濕詩屍時蝕實識駛勢釋飾視試壽獸樞輸書贖屬術樹豎數帥雙誰稅順說碩爍絲飼聳慫頌訟誦擻蘇訴肅雖綏歲孫損筍縮瑣鎖獺撻擡攤貪癱灘壇譚談歎湯燙濤縧騰謄銻題體屜條貼鐵廳聽烴銅統頭圖塗團頹蛻脫鴕馱駝橢窪襪彎灣頑萬網韋違圍爲濰維葦偉僞緯謂衛溫聞紋穩問甕撾蝸渦窩嗚鎢烏誣無蕪吳塢霧務誤錫犧襲習銑戲細蝦轄峽俠狹廈鍁鮮纖鹹賢銜閑顯險現獻縣餡羨憲線廂鑲鄉詳響項蕭銷曉嘯蠍協挾攜脅諧寫瀉謝鋅釁興洶鏽繡虛噓須許緒續軒懸選癬絢學勳詢尋馴訓訊遜壓鴉鴨啞亞訝閹煙鹽嚴顔閻豔厭硯彥諺驗鴦楊揚瘍陽癢養樣瑤搖堯遙窯謠藥爺頁業葉醫銥頤遺儀彜蟻藝億憶義詣議誼譯異繹蔭陰銀飲櫻嬰鷹應纓瑩螢營熒蠅穎喲擁傭癰踴詠湧優憂郵鈾猶遊誘輿魚漁娛與嶼語籲禦獄譽預馭鴛淵轅園員圓緣遠願約躍鑰嶽粵悅閱雲鄖勻隕運蘊醞暈韻雜災載攢暫贊贓髒鑿棗竈責擇則澤賊贈紮劄軋鍘閘詐齋債氈盞斬輾嶄棧戰綻張漲帳賬脹趙蟄轍鍺這貞針偵診鎮陣掙睜猙幀鄭證織職執紙摯擲幟質鍾終種腫衆謅軸皺晝驟豬諸誅燭矚囑貯鑄築駐專磚轉賺樁莊裝妝壯狀錐贅墜綴諄濁茲資漬蹤綜總縱鄒詛組鑽緻鐘麼為隻兇準啟闆裡靂餘鍊洩',
+		chinese_traditional_dict: '皚藹礙愛翺襖奧壩罷擺敗頒辦絆幫綁鎊謗剝飽寶報鮑輩貝鋇狽備憊繃筆畢斃閉邊編貶變辯辮鼈癟瀕濱賓擯餅撥缽鉑駁蔔補參蠶殘慚慘燦蒼艙倉滄廁側冊測層詫攙摻蟬饞讒纏鏟産闡顫場嘗長償腸廠暢鈔車徹塵陳襯撐稱懲誠騁癡遲馳恥齒熾沖蟲寵疇躊籌綢醜櫥廚鋤雛礎儲觸處傳瘡闖創錘純綽辭詞賜聰蔥囪從叢湊竄錯達帶貸擔單鄲撣膽憚誕彈當擋黨蕩檔搗島禱導盜燈鄧敵滌遞締點墊電澱釣調諜疊釘頂錠訂東動棟凍鬥犢獨讀賭鍍鍛斷緞兌隊對噸頓鈍奪鵝額訛惡餓兒爾餌貳發罰閥琺礬釩煩範販飯訪紡飛廢費紛墳奮憤糞豐楓鋒風瘋馮縫諷鳳膚輻撫輔賦複負訃婦縛該鈣蓋幹趕稈贛岡剛鋼綱崗臯鎬擱鴿閣鉻個給龔宮鞏貢鈎溝構購夠蠱顧剮關觀館慣貫廣規矽歸龜閨軌詭櫃貴劊輥滾鍋國過駭韓漢閡鶴賀橫轟鴻紅後壺護滬戶嘩華畫劃話懷壞歡環還緩換喚瘓煥渙黃謊揮輝毀賄穢會燴彙諱誨繪葷渾夥獲貨禍擊機積饑譏雞績緝極輯級擠幾薊劑濟計記際繼紀夾莢頰賈鉀價駕殲監堅箋間艱緘繭檢堿鹼揀撿簡儉減薦檻鑒踐賤見鍵艦劍餞漸濺澗漿蔣槳獎講醬膠澆驕嬌攪鉸矯僥腳餃繳絞轎較稭階節莖驚經頸靜鏡徑痙競淨糾廄舊駒舉據鋸懼劇鵑絹傑潔結誡屆緊錦僅謹進晉燼盡勁荊覺決訣絕鈞軍駿開凱顆殼課墾懇摳庫褲誇塊儈寬礦曠況虧巋窺饋潰擴闊蠟臘萊來賴藍欄攔籃闌蘭瀾讕攬覽懶纜爛濫撈勞澇樂鐳壘類淚籬離裏鯉禮麗厲勵礫曆瀝隸倆聯蓮連鐮憐漣簾斂臉鏈戀煉練糧涼兩輛諒療遼鐐獵臨鄰鱗凜賃齡鈴淩靈嶺領餾劉龍聾嚨籠壟攏隴樓婁摟簍蘆盧顱廬爐擄鹵虜魯賂祿錄陸驢呂鋁侶屢縷慮濾綠巒攣孿灤亂掄輪倫侖淪綸論蘿羅邏鑼籮騾駱絡媽瑪碼螞馬罵嗎買麥賣邁脈瞞饅蠻滿謾貓錨鉚貿麽黴沒鎂門悶們錳夢謎彌覓綿緬廟滅憫閩鳴銘謬謀畝鈉納難撓腦惱鬧餒膩攆撚釀鳥聶齧鑷鎳檸獰甯擰濘鈕紐膿濃農瘧諾歐鷗毆嘔漚盤龐國愛賠噴鵬騙飄頻貧蘋憑評潑頗撲鋪樸譜臍齊騎豈啓氣棄訖牽扡釺鉛遷簽謙錢鉗潛淺譴塹槍嗆牆薔強搶鍬橋喬僑翹竅竊欽親輕氫傾頃請慶瓊窮趨區軀驅齲顴權勸卻鵲讓饒擾繞熱韌認紉榮絨軟銳閏潤灑薩鰓賽傘喪騷掃澀殺紗篩曬閃陝贍繕傷賞燒紹賒攝懾設紳審嬸腎滲聲繩勝聖師獅濕詩屍時蝕實識駛勢釋飾視試壽獸樞輸書贖屬術樹豎數帥雙誰稅順說碩爍絲飼聳慫頌訟誦擻蘇訴肅雖綏歲孫損筍縮瑣鎖獺撻擡攤貪癱灘壇譚談歎湯燙濤縧騰謄銻題體屜條貼鐵廳聽烴銅統頭圖塗團頹蛻脫鴕馱駝橢窪襪彎灣頑萬網韋違圍爲濰維葦偉僞緯謂衛溫聞紋穩問甕撾蝸渦窩嗚鎢烏誣無蕪吳塢霧務誤錫犧襲習銑戲細蝦轄峽俠狹廈鍁鮮纖鹹賢銜閑顯險現獻縣餡羨憲線廂鑲鄉詳響項蕭銷曉嘯蠍協挾攜脅諧寫瀉謝鋅釁興洶鏽繡虛噓須許緒續軒懸選癬絢學勳詢尋馴訓訊遜壓鴉鴨啞亞訝閹煙鹽嚴顔閻豔厭硯彥諺驗鴦楊揚瘍陽癢養樣瑤搖堯遙窯謠藥爺頁業葉醫銥頤遺儀彜蟻藝億憶義詣議誼譯異繹蔭陰銀飲櫻嬰鷹應纓瑩螢營熒蠅穎喲擁傭癰踴詠湧優憂郵鈾猶遊誘輿魚漁娛與嶼語籲禦獄譽預馭鴛淵轅園員圓緣遠願約躍鑰嶽粵悅閱雲鄖勻隕運蘊醞暈韻雜災載攢暫贊贓髒鑿棗竈責擇則澤賊贈紮劄軋鍘閘詐齋債氈盞斬輾嶄棧戰綻張漲帳賬脹趙蟄轍鍺這貞針偵診鎮陣掙睜猙幀鄭證織職執紙摯擲幟質鍾終種腫衆謅軸皺晝驟豬諸誅燭矚囑貯鑄築駐專磚轉賺樁莊裝妝壯狀錐贅墜綴諄濁茲資漬蹤綜總縱鄒詛組鑽緻鐘麼為隻兇準啟闆裡靂餘鍊',
 		/*
 			中文判断
 			返回：
@@ -3281,8 +3302,8 @@ var translate = {
 		},
 		//是否包含俄语
 		russian:function(str){
-			//判断字符有  БВДЖЗИЙКЛМНОПСТУФХЦЧШЩЪЫЬЮЯЇІ
-			if(/.*[\u0411\u0412\u0414\u0416\u0417\u0418\u0419\u041A\u041B\u041C\u041D\u041E\u041F\u0421\u0422\u0423\u0424\u0425\u0426\u0427\u0428\u0429\u042A\u042B\u042C\u042E\u042F\u0407\u0406]+.*$/.test(str)){ 
+			//判断字符有  БВДЖЗИЙЛМНОПСТУФХЦЧШЩЪЫЬЮЯЇІ
+			if(/.*[\u0411\u0412\u0414\u0416\u0417\u0418\u0419\u041B\u041C\u041D\u041E\u041F\u0421\u0422\u0423\u0424\u0425\u0426\u0427\u0428\u0429\u042A\u042B\u042C\u042E\u042F\u0407\u0406]+.*$/.test(str)){ 
 				return true
 			} else {
 				return false;
@@ -3578,6 +3599,14 @@ var translate = {
 	//用户第一次打开网页时，自动判断当前用户所在国家使用的是哪种语言，来自动进行切换为用户所在国家的语种。
 	//如果使用后，第二次在用，那就优先以用户所选择的为主
 	executeByLocalLanguage:function(){
+		//先读用户自己浏览器的默认语言
+		var browserDefaultLanguage = translate.util.browserDefaultLanguage();
+		if(typeof(browserDefaultLanguage) != 'undefined' && browserDefaultLanguage.length > 0){
+			translate.changeLanguage(browserDefaultLanguage);
+			return;
+		}
+
+		//如果用户浏览器没读到默认语言，或者默认语言没有对应到translate.js支持的语种，那么在采用ip识别的方式
 		translate.request.post(translate.request.api.ip, {}, function(data){
 			//console.log(data); 
 			if(data.result == 0){
@@ -3903,8 +3932,148 @@ var translate = {
 		        }
 		    }
 		    return list;
+		},
+		/* 
+			浏览器的语种标识跟translate.js的语种标识的对应
+			key: 浏览器的语种标识
+			value: translate.js 的语种标识
+		 */
+		browserLanguage:{
+			'zh-CN':'chinese_simplified',
+			'zh-TW':'chinese_traditional',
+			'zh-HK':'chinese_traditional',
+			'co':'corsican',
+			'gn':'guarani',
+			'rw':'kinyarwanda',
+			'ha':'hausa',
+			'no':'norwegian',
+			'nl':'dutch',
+			'yo':'yoruba',
+			'en':'english',
+			'kok':'gongen',
+			'la':'latin',
+			'ne':'nepali',
+			'fr':'french',
+			'cs':'czech',
+			'haw':'hawaiian',
+			'ka':'georgian',
+			'ru':'russian',
+			'fa':'persian',
+			'bho':'bhojpuri',
+			'hi':'hindi',
+			'be':'belarusian',
+			'sw':'swahili',
+			'is':'icelandic',
+			'yi':'yiddish',
+			'tw':'twi',
+			'ga':'irish',
+			'gu':'gujarati',
+			'km':'khmer',
+			'sk':'slovak',
+			'he':'hebrew',
+			'kn':'kannada',
+			'hu':'hungarian',
+			'ta':'tamil',
+			'ar':'arabic',
+			'bn':'bengali',
+			'az':'azerbaijani',
+			'sm':'samoan',
+			'af':'afrikaans',
+			'id':'indonesian',
+			'da':'danish',
+			'sn':'shona',
+			'bm':'bambara',
+			'lt':'lithuanian',
+			'vi':'vietnamese',
+			'mt':'maltese',
+			'tk':'turkmen',
+			'as':'assamese',
+			'ca':'catalan',
+			'si':'singapore',
+			'ceb':'cebuano',
+			'gd':'scottish-gaelic',
+			'sa':'sanskrit',
+			'pl':'polish',
+			'gl':'galician',
+			'lv':'latvian',
+			'uk':'ukrainian',
+			'tt':'tatar',
+			'cy':'welsh',
+			'ja':'japanese',
+			'fil':'filipino',
+			'ay':'aymara',
+			'lo':'lao',
+			'te':'telugu',
+			'ro':'romanian',
+			'ht':'haitian_creole',
+			'doi':'dogrid',
+			'sv':'swedish',
+			'mai':'maithili',
+			'th':'thai',
+			'hy':'armenian',
+			'my':'burmese',
+			'ps':'pashto',
+			'hmn':'hmong',
+			'dv':'dhivehi',
+			'lb':'luxembourgish',
+			'sd':'sindhi',
+			'ku':'kurdish',
+			'tr':'turkish',
+			'mk':'macedonian',
+			'bg':'bulgarian',
+			'ms':'malay',
+			'lg':'luganda',
+			'mr':'marathi',
+			'et':'estonian',
+			'ml':'malayalam',
+			'de':'deutsch',
+			'sl':'slovene',
+			'ur':'urdu',
+			'pt':'portuguese',
+			'ig':'igbo',
+			'ckb':'kurdish_sorani',
+			'om':'oromo',
+			'el':'greek',
+			'es':'spanish',
+			'fy':'frisian',
+			'so':'somali',
+			'am':'amharic',
+			'ny':'nyanja',
+			'pa':'punjabi',
+			'eu':'basque',
+			'it':'italian',
+			'sq':'albanian',
+			'ko':'korean',
+			'tg':'tajik',
+			'fi':'finnish',
+			'ky':'kyrgyz',
+			'ee':'ewe',
+			'hr':'croatian',
+			'kri':'creole',
+			'qu':'quechua',
+			'bs':'bosnian',
+			'mi':'maori'
+		},
+		/*
+			获取浏览器中设置的默认使用语言
+			返回的是 translate.js 的语言唯一标识
+			如果返回的是空字符串，则是没有匹配到（可能是没有获取到本地语言，也可能是本地语言跟translate.js 翻译通道没有对应上）
+		*/
+		browserDefaultLanguage:function(){
+			var language = navigator.language || navigator.userLanguage;
+			if(typeof(language) == 'string' && language.length > 0){
+				var tLang = translate.util.browserLanguage[language];
+				if(typeof(tLang) == 'undefined'){
+					//没有在里面
+					console.log('browser default language : '+language +', translate.js current translate channel not support this language ');
+				}else{
+					return tLang;
+				}
+			}
+			
+			//将其转化为  translate.js 的语言id，比如简体中文是 chinese_simplified 、 英语是 english
+			return '';
 		}
-
 	},
 	//机器翻译采用哪种翻译服务
 	service:{  
@@ -3935,7 +4104,7 @@ var translate = {
 			},
 
 			language:{
-				json:[{"id":"ukrainian","name":"УкраїнськаName","serviceId":"uk"},{"id":"norwegian","name":"Norge","serviceId":"no"},{"id":"welsh","name":"color name","serviceId":"cy"},{"id":"dutch","name":"nederlands","serviceId":"nl"},{"id":"japanese","name":"しろうと","serviceId":"ja"},{"id":"filipino","name":"Pilipino","serviceId":"fil"},{"id":"english","name":"English","serviceId":"en"},{"id":"lao","name":"ກະຣຸນາ","serviceId":"lo"},{"id":"telugu","name":"తెలుగుQFontDatabase","serviceId":"te"},{"id":"romanian","name":"Română","serviceId":"ro"},{"id":"nepali","name":"नेपालीName","serviceId":"ne"},{"id":"french","name":"Français","serviceId":"fr"},{"id":"haitian_creole","name":"Kreyòl ayisyen","serviceId":"ht"},{"id":"czech","name":"český","serviceId":"cs"},{"id":"swedish","name":"Svenska","serviceId":"sv"},{"id":"russian","name":"Русский язык","serviceId":"ru"},{"id":"malagasy","name":"Malagasy","serviceId":"mg"},{"id":"burmese","name":"ဗာရမ်","serviceId":"my"},{"id":"pashto","name":"پښتوName","serviceId":"ps"},{"id":"thai","name":"คนไทย","serviceId":"th"},{"id":"armenian","name":"Արմենյան","serviceId":"hy"},{"id":"chinese_simplified","name":"简体中文","serviceId":"zh-CHS"},{"id":"persian","name":"Persian","serviceId":"fa"},{"id":"chinese_traditional","name":"繁體中文","serviceId":"zh-CHT"},{"id":"kurdish","name":"Kurdî","serviceId":"ku"},{"id":"turkish","name":"Türkçe","serviceId":"tr"},{"id":"hindi","name":"हिन्दी","serviceId":"hi"},{"id":"bulgarian","name":"български","serviceId":"bg"},{"id":"malay","name":"Malay","serviceId":"ms"},{"id":"swahili","name":"Kiswahili","serviceId":"sw"},{"id":"oriya","name":"ଓଡିଆ","serviceId":"or"},{"id":"icelandic","name":"ÍslandName","serviceId":"is"},{"id":"irish","name":"Íris","serviceId":"ga"},{"id":"khmer","name":"ខ្មែរKCharselect unicode block name","serviceId":"km"},{"id":"gujarati","name":"ગુજરાતી","serviceId":"gu"},{"id":"slovak","name":"Slovenská","serviceId":"sk"},{"id":"kannada","name":"ಕನ್ನಡ್Name","serviceId":"kn"},{"id":"hebrew","name":"היברית","serviceId":"he"},{"id":"hungarian","name":"magyar","serviceId":"hu"},{"id":"marathi","name":"मराठीName","serviceId":"mr"},{"id":"tamil","name":"தாமில்","serviceId":"ta"},{"id":"estonian","name":"eesti keel","serviceId":"et"},{"id":"malayalam","name":"മലമാലം","serviceId":"ml"},{"id":"inuktitut","name":"ᐃᓄᒃᑎᑐᑦ","serviceId":"iu"},{"id":"arabic","name":"بالعربية","serviceId":"ar"},{"id":"deutsch","name":"Deutsch","serviceId":"de"},{"id":"slovene","name":"slovenščina","serviceId":"sl"},{"id":"bengali","name":"বেঙ্গালী","serviceId":"bn"},{"id":"urdu","name":"اوردو","serviceId":"ur"},{"id":"azerbaijani","name":"azerbaijani","serviceId":"az"},{"id":"portuguese","name":"português","serviceId":"pt"},{"id":"samoan","name":"lifiava","serviceId":"sm"},{"id":"afrikaans","name":"afrikaans","serviceId":"af"},{"id":"tongan","name":"汤加语","serviceId":"to"},{"id":"greek","name":"ελληνικά","serviceId":"el"},{"id":"indonesian","name":"IndonesiaName","serviceId":"id"},{"id":"spanish","name":"Español","serviceId":"es"},{"id":"danish","name":"dansk","serviceId":"da"},{"id":"amharic","name":"amharic","serviceId":"am"},{"id":"punjabi","name":"ਪੰਜਾਬੀName","serviceId":"pa"},{"id":"albanian","name":"albanian","serviceId":"sq"},{"id":"lithuanian","name":"Lietuva","serviceId":"lt"},{"id":"italian","name":"italiano","serviceId":"it"},{"id":"vietnamese","name":"Tiếng Việt","serviceId":"vi"},{"id":"korean","name":"한국어","serviceId":"ko"},{"id":"maltese","name":"Malti","serviceId":"mt"},{"id":"finnish","name":"suomi","serviceId":"fi"},{"id":"catalan","name":"català","serviceId":"ca"},{"id":"croatian","name":"hrvatski","serviceId":"hr"},{"id":"bosnian","name":"bosnian","serviceId":"bs-Latn"},{"id":"polish","name":"Polski","serviceId":"pl"},{"id":"latvian","name":"latviešu","serviceId":"lv"},{"id":"maori","name":"Maori","serviceId":"mi"}],
+				json:[{"id":"ukrainian","name":"УкраїнськаName","serviceId":"uk"},{"id":"norwegian","name":"Norge","serviceId":"no"},{"id":"welsh","name":"color name","serviceId":"cy"},{"id":"dutch","name":"nederlands","serviceId":"nl"},{"id":"japanese","name":"日本語","serviceId":"ja"},{"id":"filipino","name":"Pilipino","serviceId":"fil"},{"id":"english","name":"English","serviceId":"en"},{"id":"lao","name":"ກະຣຸນາ","serviceId":"lo"},{"id":"telugu","name":"తెలుగుQFontDatabase","serviceId":"te"},{"id":"romanian","name":"Română","serviceId":"ro"},{"id":"nepali","name":"नेपालीName","serviceId":"ne"},{"id":"french","name":"Français","serviceId":"fr"},{"id":"haitian_creole","name":"Kreyòl ayisyen","serviceId":"ht"},{"id":"czech","name":"český","serviceId":"cs"},{"id":"swedish","name":"Svenska","serviceId":"sv"},{"id":"russian","name":"Русский язык","serviceId":"ru"},{"id":"malagasy","name":"Malagasy","serviceId":"mg"},{"id":"burmese","name":"ဗာရမ်","serviceId":"my"},{"id":"pashto","name":"پښتوName","serviceId":"ps"},{"id":"thai","name":"คนไทย","serviceId":"th"},{"id":"armenian","name":"Արմենյան","serviceId":"hy"},{"id":"chinese_simplified","name":"简体中文","serviceId":"zh-CHS"},{"id":"persian","name":"Persian","serviceId":"fa"},{"id":"chinese_traditional","name":"繁體中文","serviceId":"zh-CHT"},{"id":"kurdish","name":"Kurdî","serviceId":"ku"},{"id":"turkish","name":"Türkçe","serviceId":"tr"},{"id":"hindi","name":"हिन्दी","serviceId":"hi"},{"id":"bulgarian","name":"български","serviceId":"bg"},{"id":"malay","name":"Malay","serviceId":"ms"},{"id":"swahili","name":"Kiswahili","serviceId":"sw"},{"id":"oriya","name":"ଓଡିଆ","serviceId":"or"},{"id":"icelandic","name":"ÍslandName","serviceId":"is"},{"id":"irish","name":"Íris","serviceId":"ga"},{"id":"khmer","name":"ខ្មែរKCharselect unicode block name","serviceId":"km"},{"id":"gujarati","name":"ગુજરાતી","serviceId":"gu"},{"id":"slovak","name":"Slovenská","serviceId":"sk"},{"id":"kannada","name":"ಕನ್ನಡ್Name","serviceId":"kn"},{"id":"hebrew","name":"היברית","serviceId":"he"},{"id":"hungarian","name":"magyar","serviceId":"hu"},{"id":"marathi","name":"मराठीName","serviceId":"mr"},{"id":"tamil","name":"தாமில்","serviceId":"ta"},{"id":"estonian","name":"eesti keel","serviceId":"et"},{"id":"malayalam","name":"മലമാലം","serviceId":"ml"},{"id":"inuktitut","name":"ᐃᓄᒃᑎᑐᑦ","serviceId":"iu"},{"id":"arabic","name":"بالعربية","serviceId":"ar"},{"id":"deutsch","name":"Deutsch","serviceId":"de"},{"id":"slovene","name":"slovenščina","serviceId":"sl"},{"id":"bengali","name":"বেঙ্গালী","serviceId":"bn"},{"id":"urdu","name":"اوردو","serviceId":"ur"},{"id":"azerbaijani","name":"azerbaijani","serviceId":"az"},{"id":"portuguese","name":"português","serviceId":"pt"},{"id":"samoan","name":"lifiava","serviceId":"sm"},{"id":"afrikaans","name":"afrikaans","serviceId":"af"},{"id":"tongan","name":"汤加语","serviceId":"to"},{"id":"greek","name":"ελληνικά","serviceId":"el"},{"id":"indonesian","name":"IndonesiaName","serviceId":"id"},{"id":"spanish","name":"Español","serviceId":"es"},{"id":"danish","name":"dansk","serviceId":"da"},{"id":"amharic","name":"amharic","serviceId":"am"},{"id":"punjabi","name":"ਪੰਜਾਬੀName","serviceId":"pa"},{"id":"albanian","name":"albanian","serviceId":"sq"},{"id":"lithuanian","name":"Lietuva","serviceId":"lt"},{"id":"italian","name":"italiano","serviceId":"it"},{"id":"vietnamese","name":"Tiếng Việt","serviceId":"vi"},{"id":"korean","name":"한국어","serviceId":"ko"},{"id":"maltese","name":"Malti","serviceId":"mt"},{"id":"finnish","name":"suomi","serviceId":"fi"},{"id":"catalan","name":"català","serviceId":"ca"},{"id":"croatian","name":"hrvatski","serviceId":"hr"},{"id":"bosnian","name":"bosnian","serviceId":"bs-Latn"},{"id":"polish","name":"Polski","serviceId":"pl"},{"id":"latvian","name":"latviešu","serviceId":"lv"},{"id":"maori","name":"Maori","serviceId":"mi"}],
 				/*
 					获取map形式的语言列表 
 					key为 translate.service 的 name  
@@ -4383,22 +4552,25 @@ var translate = {
 		send:function(url, data, func, method, isAsynchronize, headers, abnormalFunc, showErrorLog){
 			//post提交的参数
 			var params = '';
-			if(data != null){
-				if(typeof(data) == 'string'){
-					params = data; //payload 方式
-				}else{
-					//表单提交方式
-					for(var index in data){
-						if(params.length > 0){
-							params = params + '&';
-						}
-						params = params + index + '=' + data[index];
+
+			if(data == null || typeof(data) == 'undefined'){
+				data = {};
+			}
+			//加入浏览器默认语种  v3.6.1 增加，以便更好的进行自动切换语种
+			data.browserDefaultLanguage = translate.util.browserDefaultLanguage();
+
+			if(typeof(data) == 'string'){
+				params = data; //payload 方式
+			}else{
+				//表单提交方式
+				for(var index in data){
+					if(params.length > 0){
+						params = params + '&';
 					}
+					params = params + index + '=' + data[index];
 				}
 			}
-
 			
-
 			if(url.indexOf('https://') == 0 || url.indexOf('http://') == 0){
 				//采用的url绝对路径
 			}else{
@@ -4460,7 +4632,7 @@ var translate = {
 			        			//判断是否是v2版本的翻译，如果是 translate.service 模式并且没有使用企业级翻译，参会提示
 			        			//2024.3月底开始，翻译使用量增加的太快，开源的翻译服务器有点扛不住经常出故障，所以直接把这个提示加到这里
 			        			if(translate.service.name == 'translate.service' && !translate.enterprise.isUse){
-			        				console.log('----- translate.js 提示 -----\n检测到您正在使用v2的旧版本，并且当前的v2接口恰好处于不稳定状态！所以您当前的翻译是并没有生效，也就是并没有正常进行翻译的，不过这不是您的问题，是v2版本的翻译通道因为开源免费，使用的人太多导致的偶尔不稳定。如果您想正常使用，建议您进行一下操作：\n建议一：切换到v3最新版本的 client.edge 翻译模式，设置方式可以参考： http://translate.zvo.cn/43086.html 它是2024年初新出的V3版本的翻译模式，翻译效果更稳定，而且也是完全免费使用。\n建议二：启用企业级稳定翻译，有些网站对翻译稳定性、实时性要求比较高的，可以考虑采用这种方式. 使用方式可参考： http://translate.zvo.cn/43262.html  这种方式是 2024.3月底应不少用户建议推出的一个独立翻译通道，这个翻译通道仅仅只有提供赞助的人才能使用，使用人数少，多台翻译服务器组件的自动负载以及健康检查耗时最短的最优翻译方案，使翻译更稳定。\n\n建议一跟建议二的区别是建议一延续了translate.js三年以来一直贯彻的开源免费的方针，同时也提供了相对稳定的翻译支持，它的翻译稳定性还是信得过的，一般使用这种就行。而建议二它对稳定性及翻译速度接口响应专门进行了深度优化，它的唯一缺点就是花钱。\n-------------');
+			        				console.log('----- translate.js 提示 -----\n非常抱歉，translate.service 开源免费的翻译服务器当前并发及流量太大导致阻塞！\n这个情况是时不时发生的，大概一天24小时可能会有一二十分钟这种情况，主要是因为使用量太大了，月使用量能超四十亿次，所以在高发时会出现这种情况。\n解决这种情况可以有两种方案：\n【方案一】：使用采用最新版本 3.8.0及更高版本，js引用文件为 https://cdn.staticfile.net/translate.js/3.8.0/translate.js 并且使用 client.edge 模式 （增加一行设置代码就好，可参考 https://translate.zvo.cn/4081.html ），这样就不会再出现这种情况了。这个是我们的 translate.service 通道阻塞导致，更换别的通道就可以避免这样了。而且这个方案也是完全免费的。 \n【方案二】：采用企业级稳定翻译通道 ,但是这个相比于 方案一 来说，是有一定的收费的，大概一年600，这个就是专门为了高速及高稳定准备的，而相比于这个方案二，方案一则是全免费的。 因为方案二我们是部署了两个集群，而每个集群又下分了数个网络节点，包含中国大陆、香港、美国、欧洲、 等多个州，充分保障稳定、高效，同样也产生了不少成本，所以才需要付费。更多信息说明可以参考： http://translate.zvo.cn/4087.html \n\n-------------');
 			        			}
 
 			        			//console.log(xhr);
@@ -4911,7 +5083,7 @@ var translate = {
 
 			//主节点额外权重降低，更追求响应速度
 			translate.request.speedDetectionControl.hostMasterNodeCutTime = 300; 
-			translate.request.api.host=['https://beijing.enterprise.api.translate.zvo.cn/','https://deutsch.enterprise.api.translate.zvo.cn/', 'https://america.api.translate.zvo.cn:666/'];
+			translate.request.api.host=['https://america-enterprise-api-translate.zvo.cn/','https://beijing.enterprise.api.translate.zvo.cn/','https://deutsch.enterprise.api.translate.zvo.cn/', 'https://america.api.translate.zvo.cn:666/', 'https://api.translate.zvo.cn:666/', 'https://api.translate.zvo.cn:888/'];
 		},
 		/*
 			自动适配翻译服务通道，如果当前所有网络节点均不可用，会自动切换到 edge.client 进行使用
@@ -4931,6 +5103,18 @@ var translate = {
 			}
 		}
 	},
+
+	/*
+		如果使用的是 translate.service 翻译通道，那么翻译后的语种会自动以小写的方式进行显示。
+		如果你不想将翻译后的文本全部以小写显示，而是首字母大写，那么可以通过此方法设置一下
+		v3.8.0.20240828 增加
+		目前感觉应该用不到，所以先忽略
+	*/
+	/*
+	notConvertLowerCase:function(){
+
+	},
+	*/
 
 	/*
 		初始化，如版本检测、初始数据加载等。  v2.11.11.20240124 增加
