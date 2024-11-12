@@ -9,7 +9,7 @@ var translate = {
 	/*
 	 * 当前的版本
 	 */
-	version:'3.9.0.20241012',
+	version:'3.10.0.20241102',
 	/*
 		当前使用的版本，默认使用v2. 可使用 setUseVersion2(); 
 		来设置使用v2 ，已废弃，主要是区分是否是v1版本来着，v2跟v3版本是同样的使用方式
@@ -1109,7 +1109,6 @@ var translate = {
 							}
 						}, 50, ipnode);
 
-						
 						translate.element.nodeAnalyse.set(this.nodes[hash][task_index], task.originalText, task.resultText, task['attribute']);
 
 
@@ -1856,6 +1855,19 @@ var translate = {
 	*/
 	nodeHistory:{},
 	element:{
+
+		/*
+			注意，里面全部的必须小写。
+			第一个是tag，第二个是tag的属性。比如要翻译 input 的 value 属性，那么如下：
+				translate.element.tagAttribute['input']=['value'];
+			比如要翻译 input 的 value 、 data-value 这两个属性，那么如下：
+				translate.element.tagAttribute['input']=['value','data-value'];
+			有几个要翻译的属性，就写上几个。
+			同样，有几个要额外翻译的tag，就加上几行。  
+			详细文档参考：  http://translate.zvo.cn/231504.html
+		*/
+		tagAttribute : {},
+
 		//对翻译前后的node元素的分析（翻以前）及渲染（翻译后）
 		nodeAnalyse:{
 			/*
@@ -1910,11 +1922,13 @@ var translate = {
 					//替换渲染
 					if(typeof(originalText) != 'undefined' && originalText.length > 0){
 						if(typeof(node[attribute]) != 'undefined'){
+							//这种将在 v3.9.2 之后废弃，有下面的setAttribute的方式取代
 							node[attribute] = node[attribute].replace(new RegExp(translate.util.regExp.pattern(originalText),'g'), translate.util.regExp.resultText(resultText));	
-						}else{
-							console.log(node);
 						}
-						
+						if(typeof(node.getAttribute(attribute)) != 'undefined'){
+							//这个才是在v3.9.2 后要用的，上面的留着只是为了适配以前的
+							node.setAttribute(attribute, node.getAttribute(attribute).replace(new RegExp(translate.util.regExp.pattern(originalText),'g'), translate.util.regExp.resultText(resultText)));
+						}
 					}
 					return result;
 				}
@@ -2090,6 +2104,26 @@ var translate = {
 					translate.addNodeToQueue(uuid, node, node['title'], 'title');
 				}
 			}
+
+			//v3.9.2 增加, 用户可自定义标签内 attribute 的翻译
+			var nodeNameLowerCase = translate.element.getNodeName(node).toLowerCase();
+			if(typeof(translate.element.tagAttribute[nodeNameLowerCase]) != 'undefined'){
+				//console.log('find:'+nodeNameLowerCase);
+				//console.log(translate.element.tagAttribute[nodeNameLowerCase]);
+
+				for(var attributeName_index in translate.element.tagAttribute[nodeNameLowerCase]){
+					
+					var attributeName = translate.element.tagAttribute[nodeNameLowerCase][attributeName_index];
+					if(typeof(node.getAttribute(attributeName)) == 'undefined'){
+						//这个tag标签没有这个 attribute，忽略
+						continue
+					}
+					//加入翻译
+					translate.addNodeToQueue(uuid, node, node.getAttribute(attributeName), attributeName);
+				}
+
+			}
+
 			
 			var childNodes = node.childNodes;
 			if(childNodes == null || typeof(childNodes) == 'undefined'){
@@ -3317,7 +3351,7 @@ var translate = {
 			return false;
 		},
 		
-		//是否包含特殊字符
+		//是否包含特殊字符，包含，则是true
 		specialCharacter:function(str){
 			//如：① ⑴ ⒈ 
 			if(/.*[\u2460-\u24E9]+.*$/.test(str)){ 
@@ -3385,71 +3419,18 @@ var translate = {
 				U+003D = 等于号
 				U+003E > 大于符号
 				U+003F ? 问号
-				U+0040 @ 英文“at”的简写符号
-				U+0041 A 拉丁字母 A
-				U+0042 B 拉丁字母 B
-				U+0043 C 拉丁字母 C
-				U+0044 D 拉丁字母 D
-				U+0045 E 拉丁字母 E
-				U+0046 F 拉丁字母 F
-				U+0047 G 拉丁字母 G
-				U+0048 H 拉丁字母 H
-				U+0049 I 拉丁字母 I
-				U+004A J 拉丁字母 J
-				U+004B K 拉丁字母 K
-				U+004C L 拉丁字母 L
-				U+004D M 拉丁字母 M
-				U+004E N 拉丁字母 N
-				U+004F O 拉丁字母 O
-				U+0050 P 拉丁字母 P
-				U+0051 Q 拉丁字母 Q
-				U+0052 R 拉丁字母 R
-				U+0053 S 拉丁字母 S
-				U+0054 T 拉丁字母 T
-				U+0055 U 拉丁字母 U
-				U+0056 V 拉丁字母 V
-				U+0057 W 拉丁字母 W
-				U+0058 X 拉丁字母 X
-				U+0059 Y 拉丁字母 Y
-				U+005A Z 拉丁字母 Z
 				U+005B [ 开 方括号
 				U+005C \ 右斜杠
 				U+005D ] 关 方括号
 				U+005E ^ 抑扬（重音）符号
 				U+005F _ 底线
 				U+0060 ` 重音符
-				U+0061 a 拉丁字母 a
-				U+0062 b 拉丁字母 b
-				U+0063 c 拉丁字母 c
-				U+0064 d 拉丁字母 d
-				U+0065 e 拉丁字母 e
-				U+0066 f 拉丁字母 f
-				U+0067 g 拉丁字母 g
-				U+0068 h 拉丁字母 h
-				U+0069 i 拉丁字母 i
-				U+006A j 拉丁字母 j
-				U+006B k 拉丁字母 k
-				U+006C l 拉丁字母 l（L的小写）
-				U+006D m 拉丁字母 m
-				U+006E n 拉丁字母 n
-				U+006F o 拉丁字母 o
-				U+0070 p 拉丁字母 p
-				U+0071 q 拉丁字母 q
-				U+0072 r 拉丁字母 r
-				U+0073 s 拉丁字母 s
-				U+0074 t 拉丁字母 t
-				U+0075 u 拉丁字母 u
-				U+0076 v 拉丁字母 v
-				U+0077 w 拉丁字母 w
-				U+0078 x 拉丁字母 x
-				U+0079 y 拉丁字母 y
-				U+007A z 拉丁字母 z
 				U+007B { 开 左花括号
 				U+007C | 直线
 				U+007D } 关 右花括号
 				U+007E ~ 波浪纹
 			*/
-			if(/.*[\u003A-\u007E]+.*$/.test(str)){
+			if(/.*[\u003B\u003B\u003C\u003D\u003E\u003F\u005B\u005C\u005D\u005E\u005F\u0060\u007B\u007C\u007D\u007E]+.*$/.test(str)){
 				return true;
 			}
 			
