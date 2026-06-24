@@ -68,6 +68,12 @@ translate.execute();//完成翻译初始化，进行翻译
 
 它支持极其丰富的微调扩展方式，可参考下面的**微调指令**
 
+### AI自动帮你接入到你当前的项目
+我们专为此研发了AI编程工具，可帮你完成自动接入！你不再需要看文档，不再需要写代码。   
+使用视频示例（1分钟）：  ![效果](http://video.leimingyun.com/codepanel/CodePanel_TranslateJs.mov "")
+视频示例下载： [http://video.leimingyun.com/codepanel/CodePanel_TranslateJs.mov](http://video.leimingyun.com/codepanel/CodePanel_TranslateJs.mov)  
+AI编程工具下载，当前适配 Windows 10/11 ，下载地址： [http://d.leimingyun.com/CodePanel-TranslateJs.zip](http://d.leimingyun.com/CodePanel-TranslateJs.zip)
+
 ### 微调指令
 它有极其丰富的扩展指令，让你可以对它进行各种精准控制，满足各种难缠客户的各种脑洞要求。（如果满足不了，可提出来，我们加）
 
